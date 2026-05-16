@@ -1,4 +1,4 @@
-.PHONY: meta check smoke qemu-version clean distclean tree
+.PHONY: meta check smoke qemu-version clean distclean tree evidence
 
 BUILD_DIR := build
 SMOKE_DIR := smoke
@@ -48,6 +48,11 @@ tree:
 clean:
 	rm -rf $(BUILD_DIR)/smoke
 
-# distclean intentionally removes all generated build metadata.
 distclean:
 	rm -rf $(BUILD_DIR)
+
+evidence:
+	@make meta
+	@make check
+	@make smoke
+	@bash tools/collect_evidence.sh
