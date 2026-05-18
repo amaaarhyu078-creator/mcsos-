@@ -1,0 +1,5 @@
+Script started on 2026-05-16 14:05:17+07:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="92" LINES="51"]
+[?2004h]0;salma_rahayu@DESKTOP-S5LUA56: ~/src/mcsos[01;32msalma_rahayu@DESKTOP-S5LUA56[00m:[01;34m~/src/mcsos[00m$ [7mexit[27mexit
+[?2004lexit
+
+Script done on 2026-05-16 14:05:35+07:00 [COMMAND_EXIT_CODE="0"]
