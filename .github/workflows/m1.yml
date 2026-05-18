@@ -1,0 +1,25 @@
+name: M1 CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install packages
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential git make cmake ninja-build \
+            clang lld llvm binutils nasm \
+            qemu-system-x86 qemu-utils ovmf \
+            gdb python3 shellcheck cppcheck
+
+      - name: Run tests
+        run: make test
