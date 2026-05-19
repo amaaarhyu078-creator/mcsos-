@@ -1,10 +1,16 @@
 build/
+iso_root/
+
 *.o
+*.d
 *.elf
 *.bin
 *.iso
 *.img
 *.map
 *.log
+
 .cache/
 .vscode/
+
+third_party/limine/
