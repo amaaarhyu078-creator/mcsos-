@@ -37,3 +37,13 @@ void serial_write(const char *s) {
         serial_putc(*s++);
     }
 }
+void serial_write_hex64(unsigned long value) {
+    static const char hex[] = "0123456789abcdef";
+
+    serial_write("0x");
+
+    for (int i = 15; i >= 0; --i) {
+        unsigned long nibble = (value >> (i * 4)) & 0xf;
+        serial_putc(hex[nibble]);
+    }
+}
