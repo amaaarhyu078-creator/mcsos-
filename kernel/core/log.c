@@ -49,14 +49,9 @@ void log_hex64(uint64_t value) {
     }
 }
 
-void log_key_value_hex64(
-    const char *key,
-    uint64_t value
-) {
+void log_key_value_hex64(const char *key, uint64_t value) {
     log_write(key);
     log_write("=");
-
     log_hex64(value);
-
     log_putc('\n');
 }

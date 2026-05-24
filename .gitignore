@@ -14,3 +14,4 @@ iso_root/
 .vscode/
 
 third_party/limine/
+*.disasm.txt

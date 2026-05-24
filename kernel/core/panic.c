@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include <mcsos/arch/cpu.h>
+
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
 #include <mcsos/kernel/version.h>
@@ -36,7 +37,7 @@ void kernel_panic_at(
     cpu_cli();
 
     log_writeln("");
-    log_writeln("=============== MCSOS KERNEL PANIC ===============");
+    log_writeln("================ MCSOS KERNEL PANIC ================");
 
     log_write("system=");
     log_write(MCSOS_NAME);
@@ -48,35 +49,21 @@ void kernel_panic_at(
     log_writeln(MCSOS_MILESTONE);
 
     log_write("reason=");
-    log_writeln(
-        reason != (const char *)0
-            ? reason
-            : "<null>"
-    );
+    log_writeln(reason != (const char *)0 ? reason : "<null>");
 
     log_write("location=");
-    log_write(
-        file != (const char *)0
-            ? file
-            : "<unknown>"
-    );
-
+    log_write(file != (const char *)0 ? file : "<unknown>");
     log_write(":");
 
     log_dec_u32((uint32_t)line);
-
     log_putc('\n');
 
     log_key_value_hex64("panic_code", code);
-
-    log_key_value_hex64(
-        "rflags_before_cli",
-        rflags
-    );
+    log_key_value_hex64("rflags_before_cli", rflags);
 
     log_writeln("state=halted");
 
-    log_writeln("==================================================");
+    log_writeln("====================================================");
 
     cpu_halt_forever();
 }

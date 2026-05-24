@@ -19,16 +19,16 @@ void kernel_panic_at(
         (uint64_t)(code)           \
     )
 
-#define KERNEL_ASSERT(expr)                 \
-    do {                                    \
-        if (!(expr)) {                      \
-            kernel_panic_at(                \
-                __FILE__,                   \
-                __LINE__,                   \
+#define KERNEL_ASSERT(expr)        \
+    do {                           \
+        if (!(expr)) {             \
+            kernel_panic_at(       \
+                __FILE__,          \
+                __LINE__,          \
                 "assertion failed: " #expr, \
-                0xA55E4710u                 \
-            );                              \
-        }                                   \
+                0xA55E4710u        \
+            );                     \
+        }                          \
     } while (0)
 
 #endif
