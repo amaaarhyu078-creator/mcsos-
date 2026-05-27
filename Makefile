@@ -46,7 +46,8 @@ COMMON_CFLAGS := --target=x86_64-unknown-none-elf \
 -Ikernel/include
 
 CFLAGS := $(COMMON_CFLAGS)
-
+DEBUG_CFLAGS := $(COMMON_CFLAGS) -g -O0
+RELEASE_CFLAGS := $(COMMON_CFLAGS) -O2
 PANIC_CFLAGS := $(COMMON_CFLAGS) -DMCSOS_M3_TRIGGER_PANIC=1
 
 LDFLAGS := -nostdlib -static -z max-page-size=0x1000 -T linker.ld
@@ -55,7 +56,8 @@ SRC_C := $(shell find kernel -name '*.c' | LC_ALL=C sort)
 
 OBJ := $(patsubst %.c,$(BUILD_DIR)/normal/%.o,$(SRC_C))
 PANIC_OBJ := $(patsubst %.c,$(BUILD_DIR)/panic/%.o,$(SRC_C))
-
+DEBUG_OBJ := $(patsubst %.c,$(BUILD_DIR)/debug/%.o,$(SRC_C))
+RELEASE_OBJ := $(patsubst %.c,$(BUILD_DIR)/release/%.o,$(SRC_C))
 .PHONY: all build panic inspect audit clean distclean
 
 panic: $(PANIC_KERNEL)
@@ -75,6 +77,8 @@ $(KERNEL): $(OBJ) linker.ld
 $(PANIC_KERNEL): $(PANIC_OBJ) linker.ld
 >mkdir -p $(BUILD_DIR)
 >$(LD) $(LDFLAGS) -Map=$(PANIC_MAP) -o $@ $(PANIC_OBJ)
+DEBUG_KERNEL := $(BUILD_DIR)/kernel.debug.elf
+RELEASE_KERNEL := $(BUILD_DIR)/kernel.release.elf
 
 inspect: $(KERNEL)
 >$(READELF) -h $(KERNEL) > $(BUILD_DIR)/kernel.readelf.header.txt
@@ -99,3 +103,45 @@ clean:
 
 distclean: clean
 >rm -rf iso_root limine
+
+DEBUG_KERNEL := $(BUILD_DIR)/kernel.debug.elf
+RELEASE_KERNEL := $(BUILD_DIR)/kernel.release.elf
+
+DEBUG_CFLAGS := $(COMMON_CFLAGS) -g -O0
+RELEASE_CFLAGS := $(COMMON_CFLAGS) -O2
+
+DEBUG_OBJ := $(patsubst %.c,$(BUILD_DIR)/debug/%.o,$(SRC_C))
+RELEASE_OBJ := $(patsubst %.c,$(BUILD_DIR)/release/%.o,$(SRC_C))
+
+SIZE := size
+
+.PHONY: debug release size audit-libc
+
+debug: $(DEBUG_KERNEL)
+
+release: $(RELEASE_KERNEL)
+
+$(BUILD_DIR)/debug/%.o: %.c
+>mkdir -p $(dir $@)
+>$(CC) $(DEBUG_CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/release/%.o: %.c
+>mkdir -p $(dir $@)
+>$(CC) $(RELEASE_CFLAGS) -c $< -o $@
+
+$(DEBUG_KERNEL): $(DEBUG_OBJ) linker.ld
+>mkdir -p $(BUILD_DIR)
+>$(LD) $(LDFLAGS) -Map=$(BUILD_DIR)/kernel.debug.map -o $@ $(DEBUG_OBJ)
+
+$(RELEASE_KERNEL): $(RELEASE_OBJ) linker.ld
+>mkdir -p $(BUILD_DIR)
+>$(LD) $(LDFLAGS) -Map=$(BUILD_DIR)/kernel.release.map -o $@ $(RELEASE_OBJ)
+
+size: $(KERNEL)
+>$(SIZE) $(KERNEL)
+>$(READELF) -S $(KERNEL)
+
+audit-libc: $(KERNEL)
+>! nm -u $(KERNEL) | grep .
+>! grep -R "printf\\|puts\\|malloc\\|free" -n kernel
+>echo "PASS: tidak ada dependency libc"
