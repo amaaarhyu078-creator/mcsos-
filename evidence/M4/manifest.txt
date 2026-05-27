@@ -1,0 +1,14 @@
+MCSOS M4 evidence manifest
+timestamp_utc=2026-05-27T15:54:39Z
+commit=66aeb8dc92ad8a3f7427a178a45cf312a4ceff0c
+clang=Ubuntu clang version 21.1.8 (6ubuntu1)
+lld=Ubuntu LLD 21.1.8 (compatible with GNU linkers)
+qemu=QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3)
+kernel.disasm.txt
+kernel.elf
+kernel.map
+kernel.readelf.header.txt
+kernel.readelf.programs.txt
+kernel.syms.txt
+m4-qemu-serial.log
+manifest.txt
