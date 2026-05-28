@@ -58,26 +58,26 @@ void x86_64_idt_init(void) {
         );
     }
 
-    for (uint8_t vector = 0u;
-         vector < 32u;
-         ++vector) {
+for (uint8_t vector = 0u;
+     vector < 48u;
+     ++vector) {
 
-        uint8_t gate_type =
-            X86_64_IDT_GATE_INTERRUPT;
+    uint8_t gate_type =
+        X86_64_IDT_GATE_INTERRUPT;
 
-        if (vector == 3u) {
-            gate_type =
-                X86_64_IDT_GATE_TRAP;
-        }
-
-        x86_64_idt_set_gate(
-            vector,
-            (uint64_t)
-            (uintptr_t)
-            x86_64_exception_stubs[vector],
-            gate_type
-        );
+    if (vector == 3u) {
+        gate_type =
+            X86_64_IDT_GATE_TRAP;
     }
+
+    x86_64_idt_set_gate(
+        vector,
+        (uint64_t)
+        (uintptr_t)
+        x86_64_exception_stubs[vector],
+        gate_type
+    );
+}
 
     idtr.limit =
         (uint16_t)(sizeof(idt) - 1u);

@@ -5,6 +5,9 @@
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
 
+#include "pic.h"
+#include "pit.h"
+
 typedef struct {
     const char *name;
     uint8_t recoverable;
@@ -88,22 +91,62 @@ static void log_trap_frame(
 void x86_64_trap_dispatch(
     x86_64_trap_frame_t *frame
 ) {
-    KERNEL_ASSERT(frame != (x86_64_trap_frame_t *)0);
-
-    if (frame->vector >= 32u) {
-        KERNEL_PANIC(
-            "unexpected external interrupt vector",
-            frame->vector
-        );
-    }
+    KERNEL_ASSERT(
+        frame != (x86_64_trap_frame_t *)0
+    );
 
     ++trap_count;
     ++trap_vector_count[frame->vector];
 
-    log_write("[M4] trap dispatch: ");
-    log_writeln(exception_info[frame->vector].name);
+    /*
+     * PIC IRQ range
+     * 32..47
+     */
+    if (frame->vector >= 32u &&
+        frame->vector <= 47u) {
+
+        /*
+         * IRQ0 = PIT timer
+         */
+        if (frame->vector == 32u) {
+            timer_on_irq0();
+        }
+
+        pic_send_eoi(
+            (uint8_t)(frame->vector - 32u)
+        );
+
+        return;
+    }
+/*
+ * Hardware IRQ path
+ */
+if (frame->vector >= 32u &&
+    frame->vector <= 47u) {
+
+    uint8_t irq =
+        (uint8_t)(frame->vector - 32u);
+
+    if (irq == 0u) {
+
+        timer_on_irq0();
+    }
+
+    pic_send_eoi(irq);
+
+    return;
+}
+    /*
+     * CPU exception path
+     */
+    log_write("[M5] trap dispatch: ");
+
+    log_writeln(
+        exception_info[frame->vector].name
+    );
 
     log_write("recoverable=");
+
     log_writeln(
         exception_info[frame->vector].recoverable
             ? "yes"
@@ -112,14 +155,21 @@ void x86_64_trap_dispatch(
 
     log_trap_frame(frame);
 
+    /*
+     * Breakpoint remains recoverable
+     */
     if (frame->vector == 3u) {
+
         log_writeln(
-            "[M4] breakpoint handled; returning with iretq"
+            "[M5] breakpoint handled; returning with iretq"
         );
 
         return;
     }
 
+    /*
+     * Everything else is fatal
+     */
     KERNEL_PANIC(
         "unrecoverable CPU exception",
         frame->vector

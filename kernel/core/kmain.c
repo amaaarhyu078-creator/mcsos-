@@ -9,6 +9,9 @@
 #include <mcsos/kernel/panic.h>
 #include <mcsos/kernel/version.h>
 
+#include <pic.h>
+#include <pit.h>
+
 __attribute__((used, section(".requests")))
 static volatile LIMINE_BASE_REVISION(2);
 
@@ -42,6 +45,8 @@ static void m4_selftest(void) {
 }
 
 void kmain(void) {
+    cpu_cli();
+
     log_init();
 
     log_write(MCSOS_NAME);
@@ -66,9 +71,49 @@ void kmain(void) {
         cpu_read_rflags()
     );
 
+    /*
+     * IDT must exist before interrupts.
+     */
     x86_64_idt_init();
 
     m4_selftest();
+
+    /*
+     * PIC setup
+     */
+    log_writeln(
+        "[M5] remapping PIC"
+    );
+
+    pic_remap(
+        PIC_MASTER_OFFSET,
+        PIC_SLAVE_OFFSET
+    );
+
+    /*
+     * Safe default:
+     * mask everything first.
+     */
+    pic_mask_all();
+
+    /*
+     * PIT timer at 100 Hz
+     */
+    log_writeln(
+        "[M5] configuring PIT"
+    );
+
+    pit_configure_hz(100u);
+
+    /*
+     * Only IRQ0 enabled.
+     */
+    pic_unmask_irq(0u);
+
+    log_key_value_hex64(
+        "pic_master_mask",
+        pic_read_master_mask()
+    );
 
 #ifdef MCSOS_M4_TRIGGER_BREAKPOINT
     log_writeln(
@@ -89,13 +134,28 @@ void kmain(void) {
     );
 #else
     log_writeln(
-        "[M4] IDT and exception dispatch path installed"
+        "[M5] enabling interrupts"
+    );
+
+    /*
+     * Interrupts enabled ONLY after:
+     * - IDT ready
+     * - PIC remapped
+     * - PIT configured
+     * - IRQ0 unmasked
+     */
+    cpu_sti();
+
+    log_writeln(
+        "[M5] timer IRQ online"
     );
 
     log_writeln(
-        "[M4] ready for QEMU smoke test and GDB audit"
+        "[M5] entering idle halt loop"
     );
 
-    cpu_halt_forever();
+    for (;;) {
+        cpu_hlt();
+    }
 #endif
 }

@@ -3,6 +3,7 @@
 #include "io.h"
 #include "pit.h"
 
+#include "mcsos/kernel/log.h"
 
 #define PIT_CHANNEL0_DATA 0x40
 #define PIT_COMMAND       0x43
@@ -34,4 +35,14 @@ void pit_configure_hz(uint32_t hz) {
 
 void timer_on_irq0(void) {
     g_ticks++;
+
+    if ((g_ticks % 100u) == 0u) {
+
+        log_write("[MCSOS:TIMER] ticks=");
+
+        log_key_value_hex64(
+            "count",
+            g_ticks
+        );
+    }
 }

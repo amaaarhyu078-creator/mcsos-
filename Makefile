@@ -123,3 +123,46 @@ clean:
 
 distclean: clean
 >rm -rf iso_root limine evidence
+grade: $(KERNEL)
+>mkdir -p build
+>cp $(KERNEL) build/mcsos-m5.elf
+>cp $(MAP) build/mcsos-m5.map
+
+>$(READELF) -h build/mcsos-m5.elf \
+>    > build/readelf-header.txt
+
+>$(READELF) -S build/mcsos-m5.elf \
+>    > build/readelf-sections.txt
+
+>$(READELF) -l build/mcsos-m5.elf \
+>    > build/readelf-program-headers.txt
+
+>$(NM) -n build/mcsos-m5.elf \
+>    > build/symbols.txt
+
+>$(NM) -u build/mcsos-m5.elf \
+>    > build/undefined.txt
+
+>$(OBJDUMP) -d -Mintel build/mcsos-m5.elf \
+>    > build/disassembly.txt
+
+>echo "[M5] grade artifacts generated"
+ISO := $(BUILD_DIR)/mcsos.iso
+
+iso: $(KERNEL)
+>mkdir -p iso_root/boot
+>cp $(KERNEL) iso_root/boot/kernel.elf
+
+>xorriso -as mkisofs \
+>    -b boot/limine/limine-bios-cd.bin \
+>    -no-emul-boot \
+>    -boot-load-size 4 \
+>    -boot-info-table \
+>    --efi-boot boot/limine/limine-uefi-cd.bin \
+>    -efi-boot-part \
+>    --efi-boot-image \
+>    --protective-msdos-label \
+>    iso_root \
+>    -o $(ISO)
+
+>echo "[M5] ISO generated at $(ISO)"

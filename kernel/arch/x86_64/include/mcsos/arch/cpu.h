@@ -4,32 +4,29 @@
 #include <stdint.h>
 
 static inline void cpu_cli(void) {
-    __asm__ volatile ("cli" : : : "memory");
+    __asm__ volatile ("cli" ::: "memory");
+}
+
+static inline void cpu_sti(void) {
+    __asm__ volatile ("sti" ::: "memory");
 }
 
 static inline void cpu_hlt(void) {
-    __asm__ volatile ("hlt" : : : "memory");
-}
-
-static inline void cpu_pause(void) {
-    __asm__ volatile ("pause" : : : "memory");
-}
-
-static inline void cpu_breakpoint(void) {
-    __asm__ volatile ("int3" : : : "memory");
+    __asm__ volatile ("hlt");
 }
 
 static inline uint64_t cpu_read_rflags(void) {
-    uint64_t flags;
+    uint64_t rflags;
 
     __asm__ volatile (
-        "pushfq; popq %0"
-        : "=r"(flags)
+        "pushfq\n\t"
+        "popq %0"
+        : "=r"(rflags)
         :
         : "memory"
     );
 
-    return flags;
+    return rflags;
 }
 
 __attribute__((noreturn))

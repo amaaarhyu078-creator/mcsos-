@@ -157,5 +157,21 @@ x86_64_exception_stubs:
 .quad isr_stub_29
 .quad isr_stub_30
 .quad isr_stub_31
+.quad isr_stub_32
+.quad isr_stub_33
+.quad isr_stub_34
+.quad isr_stub_35
+.quad isr_stub_36
+.quad isr_stub_37
+.quad isr_stub_38
+.quad isr_stub_39
+.quad isr_stub_40
+.quad isr_stub_41
+.quad isr_stub_42
+.quad isr_stub_43
+.quad isr_stub_44
+.quad isr_stub_45
+.quad isr_stub_46
+.quad isr_stub_47
 
 .size x86_64_exception_stubs, . - x86_64_exception_stubs
