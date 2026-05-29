@@ -12,3 +12,4 @@ uint64_t timer_ticks(void);
 void timer_on_irq0(void);
 
 #endif
+void timer_wait_ticks(uint64_t delta);

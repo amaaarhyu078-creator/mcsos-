@@ -17,5 +17,8 @@ void pic_send_eoi(uint8_t irq);
 uint8_t pic_read_master_mask(void);
 
 uint8_t pic_read_slave_mask(void);
+uint16_t pic_read_irr(void);
+
+uint16_t pic_read_isr(void);
 
 #endif

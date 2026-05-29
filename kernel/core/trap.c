@@ -51,6 +51,8 @@ static const m4_exception_info_t exception_info[32] = {
 static uint64_t trap_count;
 static uint64_t trap_vector_count[256];
 
+static uint64_t unexpected_irq_count;
+
 uint64_t m4_trap_count_for_test(void) {
     return trap_count;
 }
@@ -98,28 +100,9 @@ void x86_64_trap_dispatch(
     ++trap_count;
     ++trap_vector_count[frame->vector];
 
-    /*
-     * PIC IRQ range
-     * 32..47
-     */
-    if (frame->vector >= 32u &&
-        frame->vector <= 47u) {
-
-        /*
-         * IRQ0 = PIT timer
-         */
-        if (frame->vector == 32u) {
-            timer_on_irq0();
-        }
-
-        pic_send_eoi(
-            (uint8_t)(frame->vector - 32u)
-        );
-
-        return;
-    }
 /*
- * Hardware IRQ path
+ * PIC IRQ range
+ * 32..47
  */
 if (frame->vector >= 32u &&
     frame->vector <= 47u) {
@@ -130,6 +113,18 @@ if (frame->vector >= 32u &&
     if (irq == 0u) {
 
         timer_on_irq0();
+
+    } else {
+
+        ++unexpected_irq_count;
+
+        if ((unexpected_irq_count % 100u) == 0u) {
+
+            log_key_value_hex64(
+                "unexpected_irq_count",
+                unexpected_irq_count
+            );
+        }
     }
 
     pic_send_eoi(irq);

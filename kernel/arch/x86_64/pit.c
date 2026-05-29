@@ -15,7 +15,14 @@ static volatile uint64_t g_ticks = 0;
 uint64_t timer_ticks(void) {
     return g_ticks;
 }
+void timer_wait_ticks(uint64_t delta) {
+    uint64_t target =
+        timer_ticks() + delta;
 
+    while (timer_ticks() < target) {
+        __asm__ volatile ("hlt");
+    }
+}
 void pit_configure_hz(uint32_t hz) {
     if (hz == 0) {
         hz = 100;

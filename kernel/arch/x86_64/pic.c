@@ -16,6 +16,9 @@
 
 #define ICW4_8086    0x01
 
+#define PIC_READ_IRR 0x0A
+#define PIC_READ_ISR 0x0B
+
 static uint8_t pic_master_mask = 0xFF;
 static uint8_t pic_slave_mask  = 0xFF;
 
@@ -88,4 +91,33 @@ void pic_remap(uint8_t master_offset, uint8_t slave_offset) {
 
     outb(PIC1_DATA, pic_master_mask);
     outb(PIC2_DATA, pic_slave_mask);
+}
+uint16_t pic_read_irr(void) {
+    outb(PIC1_COMMAND, PIC_READ_IRR);
+    outb(PIC2_COMMAND, PIC_READ_IRR);
+
+    uint16_t master =
+        (uint16_t)inb(PIC1_COMMAND);
+
+    uint16_t slave =
+        (uint16_t)inb(PIC2_COMMAND);
+
+    return (uint16_t)(
+        master | (slave << 8u)
+    );
+}
+
+uint16_t pic_read_isr(void) {
+    outb(PIC1_COMMAND, PIC_READ_ISR);
+    outb(PIC2_COMMAND, PIC_READ_ISR);
+
+    uint16_t master =
+        (uint16_t)inb(PIC1_COMMAND);
+
+    uint16_t slave =
+        (uint16_t)inb(PIC2_COMMAND);
+
+    return (uint16_t)(
+        master | (slave << 8u)
+    );
 }
