@@ -7,6 +7,7 @@
 
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
+#include <mcsos/kernel/pmm.h>
 #include <mcsos/kernel/version.h>
 
 #include <pic.h>
@@ -14,9 +15,23 @@
 
 __attribute__((used, section(".requests")))
 static volatile LIMINE_BASE_REVISION(2);
-
+__attribute__((used, section(".requests")))
+static volatile struct limine_memmap_request memmap_request = {
+    .id = LIMINE_MEMMAP_REQUEST,
+    .revision = 0
+};
 extern char __kernel_start[];
 extern char __kernel_end[];
+
+static struct pmm_state kernel_pmm;
+
+static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
+    __attribute__((aligned(4096)));
+
+static void m6_keep_symbols(void) {
+    (void)&kernel_pmm;
+    (void)&kernel_pmm_bitmap;
+}
 
 static void m4_selftest(void) {
     KERNEL_ASSERT(
@@ -43,8 +58,9 @@ static void m4_selftest(void) {
         "[M4] selftest: IDT invariants passed"
     );
 }
-
 void kmain(void) {
+    m6_keep_symbols();
+
     cpu_cli();
 
     log_init();

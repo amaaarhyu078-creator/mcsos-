@@ -166,3 +166,19 @@ iso: $(KERNEL)
 >    -o $(ISO)
 
 >echo "[M5] ISO generated at $(ISO)"
+HOSTCC ?= cc
+
+build/test_pmm_host: kernel/core/pmm.c tests/test_pmm_host.c
+>mkdir -p build
+>$(HOSTCC) \
+>    -std=c17 \
+>    -Wall \
+>    -Wextra \
+>    -Werror \
+>    -Ikernel/include \
+>    tests/test_pmm_host.c \
+>    kernel/core/pmm.c \
+>    -o build/test_pmm_host
+
+check-m6: build/test_pmm_host
+>./build/test_pmm_host
