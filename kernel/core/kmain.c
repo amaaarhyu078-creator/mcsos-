@@ -28,6 +28,144 @@ static struct pmm_state kernel_pmm;
 static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
     __attribute__((aligned(4096)));
 
+static uint32_t limine_to_boot_type(
+    uint64_t type
+) {
+    switch (type) {
+    case LIMINE_MEMMAP_USABLE:
+        return BOOT_MEM_USABLE;
+
+    case LIMINE_MEMMAP_RESERVED:
+        return BOOT_MEM_RESERVED;
+
+    case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
+        return BOOT_MEM_BOOTLOADER_RECLAIMABLE;
+
+#if LIMINE_API_REVISION >= 2
+    case LIMINE_MEMMAP_EXECUTABLE_AND_MODULES:
+#else
+    case LIMINE_MEMMAP_KERNEL_AND_MODULES:
+#endif
+        return BOOT_MEM_KERNEL_AND_MODULES;
+
+    case LIMINE_MEMMAP_FRAMEBUFFER:
+        return BOOT_MEM_FRAMEBUFFER;
+
+    case LIMINE_MEMMAP_ACPI_RECLAIMABLE:
+        return BOOT_MEM_ACPI_RECLAIMABLE;
+
+    case LIMINE_MEMMAP_ACPI_NVS:
+        return BOOT_MEM_ACPI_NVS;
+
+    case LIMINE_MEMMAP_BAD_MEMORY:
+        return BOOT_MEM_BAD_MEMORY;
+
+    default:
+        return BOOT_MEM_RESERVED;
+    }
+}
+
+static void m6_memory_init(void) {
+    struct limine_memmap_response *resp =
+        memmap_request.response;
+
+    if (resp == NULL) {
+        KERNEL_PANIC(
+            "limine memmap missing",
+            0x4D360001u
+        );
+    }
+
+    struct boot_mem_region regions[256];
+
+    uint64_t count = resp->entry_count;
+
+    if (count > 256) {
+        count = 256;
+    }
+
+    for (uint64_t i = 0; i < count; i++) {
+        struct limine_memmap_entry *entry =
+            resp->entries[i];
+
+        regions[i].base =
+            entry->base;
+
+        regions[i].length =
+            entry->length;
+
+        regions[i].type =
+            limine_to_boot_type(
+                entry->type
+            );
+    }
+
+    if (!pmm_init_from_map(
+            &kernel_pmm,
+            regions,
+            (size_t)count,
+            kernel_pmm_bitmap,
+            sizeof(kernel_pmm_bitmap),
+            PMM_MAX_PHYS_BYTES)) {
+
+        KERNEL_PANIC(
+            "pmm_init_from_map failed",
+            0x4D360002u
+        );
+    }
+
+    log_writeln(
+        "[M6] pmm initialized"
+    );
+
+    log_write(
+        "[M6] frames managed = "
+    );
+    log_dec_u64(
+        pmm_frame_count(
+            &kernel_pmm
+        )
+    );
+    log_putc('\n');
+
+    log_write(
+        "[M6] frames free = "
+    );
+    log_dec_u64(
+        pmm_free_count(
+            &kernel_pmm
+        )
+    );
+    log_putc('\n');
+
+    uint64_t frame =
+        pmm_alloc_frame(
+            &kernel_pmm
+        );
+
+    if (frame == PMM_INVALID_FRAME) {
+        KERNEL_PANIC(
+            "pmm_alloc_frame failed",
+            0x4D360003u
+        );
+    }
+
+    log_write(
+        "[M6] sample frame = "
+    );
+    log_hex64(frame);
+    log_putc('\n');
+
+    if (!pmm_free_frame(
+            &kernel_pmm,
+            frame)) {
+
+        KERNEL_PANIC(
+            "pmm_free_frame failed",
+            0x4D360004u
+        );
+    }
+}
 static void m6_keep_symbols(void) {
     (void)&kernel_pmm;
     (void)&kernel_pmm_bitmap;
@@ -92,7 +230,9 @@ void kmain(void) {
      */
     x86_64_idt_init();
 
-    m4_selftest();
+m4_selftest();
+
+m6_memory_init();
 
     /*
      * PIC setup
