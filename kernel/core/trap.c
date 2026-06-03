@@ -4,6 +4,7 @@
 
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
+#include <mcsos/kernel/vmm.h>
 
 #include "pic.h"
 #include "pit.h"
@@ -66,28 +67,94 @@ uint64_t m4_trap_vector_count_for_test(uint64_t vector) {
 }
 
 static void log_trap_frame(
-    const x86_64_trap_frame_t *frame
+const x86_64_trap_frame_t *frame
 ) {
-    log_key_value_hex64("trap_vector", frame->vector);
-    log_key_value_hex64("trap_error", frame->error_code);
+log_key_value_hex64("trap_vector", frame->vector);
+log_key_value_hex64("trap_error", frame->error_code);
 
-    log_key_value_hex64("trap_rip", frame->rip);
-    log_key_value_hex64("trap_cs", frame->cs);
-    log_key_value_hex64("trap_rflags", frame->rflags);
+log_key_value_hex64("trap_rip", frame->rip);
+log_key_value_hex64("trap_cs", frame->cs);
+log_key_value_hex64("trap_rflags", frame->rflags);
 
-    log_key_value_hex64("trap_rax", frame->rax);
-    log_key_value_hex64("trap_rbx", frame->rbx);
-    log_key_value_hex64("trap_rcx", frame->rcx);
-    log_key_value_hex64("trap_rdx", frame->rdx);
+log_key_value_hex64("trap_rax", frame->rax);
+log_key_value_hex64("trap_rbx", frame->rbx);
+log_key_value_hex64("trap_rcx", frame->rcx);
+log_key_value_hex64("trap_rdx", frame->rdx);
 
-    log_key_value_hex64("trap_r8", frame->r8);
-    log_key_value_hex64("trap_r9", frame->r9);
-    log_key_value_hex64("trap_r10", frame->r10);
-    log_key_value_hex64("trap_r11", frame->r11);
-    log_key_value_hex64("trap_r12", frame->r12);
-    log_key_value_hex64("trap_r13", frame->r13);
-    log_key_value_hex64("trap_r14", frame->r14);
-    log_key_value_hex64("trap_r15", frame->r15);
+log_key_value_hex64("trap_r8", frame->r8);
+log_key_value_hex64("trap_r9", frame->r9);
+log_key_value_hex64("trap_r10", frame->r10);
+log_key_value_hex64("trap_r11", frame->r11);
+log_key_value_hex64("trap_r12", frame->r12);
+log_key_value_hex64("trap_r13", frame->r13);
+log_key_value_hex64("trap_r14", frame->r14);
+log_key_value_hex64("trap_r15", frame->r15);
+
+}
+
+static void m7_page_fault_dump(
+const x86_64_trap_frame_t *frame
+) {
+uint64_t error_code =
+frame->error_code;
+
+uint64_t cr2 =
+    vmm_read_cr2();
+
+log_writeln(
+    "[M7] #PF page fault"
+);
+
+log_key_value_hex64(
+    "pf_cr2",
+    cr2
+);
+
+log_key_value_hex64(
+    "pf_error",
+    error_code
+);
+
+log_key_value_hex64(
+    "pf_rip",
+    frame->rip
+);
+
+log_write("present/protection=");
+log_writeln(
+    (error_code & 1ULL)
+        ? "yes"
+        : "no"
+);
+
+log_write("write=");
+log_writeln(
+    (error_code & 2ULL)
+        ? "yes"
+        : "no"
+);
+
+log_write("user=");
+log_writeln(
+    (error_code & 4ULL)
+        ? "yes"
+        : "no"
+);
+
+log_write("reserved=");
+log_writeln(
+    (error_code & 8ULL)
+        ? "yes"
+        : "no"
+);
+
+log_write("instruction_fetch=");
+log_writeln(
+    (error_code & 16ULL)
+        ? "yes"
+        : "no"
+);
+
 }
 
 void x86_64_trap_dispatch(
@@ -149,7 +216,12 @@ if (frame->vector >= 32u &&
     );
 
     log_trap_frame(frame);
+if (frame->vector == 14u) {
 
+    m7_page_fault_dump(
+        frame
+    );
+}
     /*
      * Breakpoint remains recoverable
      */

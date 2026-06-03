@@ -8,10 +8,17 @@
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
 #include <mcsos/kernel/pmm.h>
+#include <mcsos/kernel/vmm.h>
 #include <mcsos/kernel/version.h>
 
 #include <pic.h>
 #include <pit.h>
+
+void *memset(
+    void *dest,
+    int value,
+    size_t count
+);
 
 __attribute__((used, section(".requests")))
 static volatile LIMINE_BASE_REVISION(2);
@@ -24,6 +31,8 @@ extern char __kernel_start[];
 extern char __kernel_end[];
 
 static struct pmm_state kernel_pmm;
+
+static struct vmm_space kernel_space;
 
 static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
     __attribute__((aligned(4096)));
@@ -170,7 +179,46 @@ static void m6_keep_symbols(void) {
     (void)&kernel_pmm;
     (void)&kernel_pmm_bitmap;
 }
+static uint64_t kernel_vmm_alloc(
+    void *ctx
+) {
+    (void)ctx;
 
+    return pmm_alloc_frame(
+        &kernel_pmm
+    );
+}
+
+static void kernel_vmm_free(
+    void *ctx,
+    uint64_t frame_paddr
+) {
+    (void)ctx;
+
+    pmm_free_frame(
+        &kernel_pmm,
+        frame_paddr
+    );
+}
+
+static void *kernel_phys_to_virt(
+    void *ctx,
+    uint64_t paddr
+) {
+    (void)ctx;
+
+    return (void *)(uintptr_t)paddr;
+}
+
+static void m7_zero_page(
+    void *page
+) {
+    memset(
+        page,
+        0,
+        VMM_PAGE_SIZE
+    );
+}
 static void m4_selftest(void) {
     KERNEL_ASSERT(
         __kernel_end > __kernel_start
@@ -234,6 +282,56 @@ m4_selftest();
 
 m6_memory_init();
 
+/*
+ * M7 VMM initialization
+ */
+{
+    uint64_t root =
+        pmm_alloc_frame(
+            &kernel_pmm
+        );
+
+    if (root == PMM_INVALID_FRAME) {
+
+        KERNEL_PANIC(
+            "M7 root page allocation failed",
+            0x4D370001u
+        );
+    }
+
+    m7_zero_page(
+        kernel_phys_to_virt(
+            0,
+            root
+        )
+    );
+
+    int rc =
+        vmm_space_init(
+            &kernel_space,
+            root,
+            0,
+            kernel_vmm_alloc,
+            kernel_vmm_free,
+            kernel_phys_to_virt
+        );
+
+    if (rc != VMM_MAP_OK) {
+
+        KERNEL_PANIC(
+            "M7 vmm_space_init failed",
+            0x4D370002u
+        );
+    }
+
+    log_writeln(
+        "[M7] VMM core initialized"
+    );
+
+    log_writeln(
+        "[M7] ready for QEMU smoke test"
+    );
+}
     /*
      * PIC setup
      */

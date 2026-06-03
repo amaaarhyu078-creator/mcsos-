@@ -182,3 +182,33 @@ build/test_pmm_host: kernel/core/pmm.c tests/test_pmm_host.c
 
 check-m6: build/test_pmm_host
 >./build/test_pmm_host
+build/vmm.o: kernel/core/vmm.c kernel/include/mcsos/kernel/vmm.h kernel/include/types.h
+>mkdir -p build
+>$(CC) \
+>    $(COMMON_CFLAGS) \
+>    -c kernel/core/vmm.c \
+>    -o build/vmm.o
+
+build/test_vmm_host: kernel/core/vmm.c tests/test_vmm_host.c \
+                      kernel/include/mcsos/kernel/vmm.h \
+                      kernel/include/types.h
+>mkdir -p build
+>$(HOSTCC) \
+>    -DMCSOS_HOST_TEST \
+>    -std=c17 \
+>    -Wall \
+>    -Wextra \
+>    -Werror \
+>    -Ikernel/include \
+>    kernel/core/vmm.c \
+>    tests/test_vmm_host.c \
+>    -o build/test_vmm_host
+
+check-m7: build/vmm.o build/test_vmm_host
+>./build/test_vmm_host
+>nm -u build/vmm.o
+>objdump -dr build/vmm.o > build/vmm.objdump.txt
+>grep -q "invlpg" build/vmm.objdump.txt
+>grep -q "cr3" build/vmm.objdump.txt
+
+check: check-m7
