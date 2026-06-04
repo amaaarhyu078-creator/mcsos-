@@ -9,6 +9,7 @@
 #include <mcsos/kernel/panic.h>
 #include <mcsos/kernel/pmm.h>
 #include <mcsos/kernel/vmm.h>
+#include <mcsos/kernel/kmem.h>
 #include <mcsos/kernel/version.h>
 
 #include <pic.h>
@@ -34,6 +35,14 @@ static struct pmm_state kernel_pmm;
 
 static struct vmm_space kernel_space;
 
+#define M8_BOOT_HEAP_SIZE (64u * 1024u)
+
+static unsigned char
+m8_boot_heap[M8_BOOT_HEAP_SIZE]
+__attribute__((aligned(4096)));
+
+static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
+    __attribute__((aligned(4096)));
 static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
     __attribute__((aligned(4096)));
 
@@ -244,8 +253,73 @@ static void m4_selftest(void) {
         "[M4] selftest: IDT invariants passed"
     );
 }
-void kmain(void) {
-    m6_keep_symbols();
+
+static void m8_heap_bootstrap(void)
+{
+    int rc =
+        kmem_init(
+            m8_boot_heap,
+            sizeof(m8_boot_heap)
+        );
+
+    if (rc != 0) {
+        KERNEL_PANIC(
+            "m8 kmem_init failed",
+            0x4D380001u
+        );
+    }
+
+    void *probe =
+        kmem_alloc(128);
+
+    if (probe == 0) {
+        KERNEL_PANIC(
+            "m8 kmem_alloc failed",
+            0x4D380002u
+        );
+    }
+
+    if (kmem_free_checked(probe) != 0) {
+        KERNEL_PANIC(
+            "m8 kmem_free failed",
+            0x4D380003u
+        );
+    }
+
+    kmem_stats_t st;
+
+    kmem_get_stats(&st);
+
+    log_writeln(
+        "[M8] heap initialized"
+    );
+
+    log_write(
+        "[M8] heap total = "
+    );
+    log_dec_u64(
+        (uint64_t)st.total_bytes
+    );
+    log_putc('\n');
+
+    log_write(
+        "[M8] heap free = "
+    );
+    log_dec_u64(
+        (uint64_t)st.free_bytes
+    );
+    log_putc('\n');
+
+    log_write(
+        "[M8] heap largest = "
+    );
+    log_dec_u64(
+        (uint64_t)st.largest_free
+    );
+    log_putc('\n');
+}
+
+void kmain(void) {    m6_keep_symbols();
 
     cpu_cli();
 
@@ -332,6 +406,7 @@ m6_memory_init();
         "[M7] ready for QEMU smoke test"
     );
 }
+m8_heap_bootstrap();
     /*
      * PIC setup
      */

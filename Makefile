@@ -212,3 +212,46 @@ check-m7: build/vmm.o build/test_vmm_host
 >grep -q "cr3" build/vmm.objdump.txt
 
 check: check-m7
+
+M8_BUILD_DIR := build/m8
+
+.PHONY: check-m8 m8-audit
+
+build/m8/kmem.freestanding.o: kernel/core/kmem.c \
+                              kernel/include/mcsos/kernel/kmem.h
+>mkdir -p $(M8_BUILD_DIR)
+>$(CC) \
+>    $(COMMON_CFLAGS) \
+>    -c kernel/core/kmem.c \
+>    -o $(M8_BUILD_DIR)/kmem.freestanding.o
+
+build/m8/test_kmem_host: kernel/core/kmem.c \
+                         tests/test_kmem_host.c \
+                         kernel/include/mcsos/kernel/kmem.h
+>mkdir -p $(M8_BUILD_DIR)
+>$(HOSTCC) \
+>    -std=c17 \
+>    -Wall \
+>    -Wextra \
+>    -Werror \
+>    -Ikernel/include \
+>    kernel/core/kmem.c \
+>    tests/test_kmem_host.c \
+>    -o $(M8_BUILD_DIR)/test_kmem_host
+
+check-m8: build/m8/test_kmem_host
+>./build/m8/test_kmem_host | tee $(M8_BUILD_DIR)/test_kmem.log
+
+m8-audit: build/m8/kmem.freestanding.o
+>nm -u $(M8_BUILD_DIR)/kmem.freestanding.o \
+>    > $(M8_BUILD_DIR)/nm_u.txt
+
+>test ! -s $(M8_BUILD_DIR)/nm_u.txt
+
+>readelf -h $(M8_BUILD_DIR)/kmem.freestanding.o \
+>    > $(M8_BUILD_DIR)/readelf_h.txt
+
+>objdump -dr $(M8_BUILD_DIR)/kmem.freestanding.o \
+>    > $(M8_BUILD_DIR)/kmem.objdump.txt
+
+m8-all: check-m8 m8-audit
