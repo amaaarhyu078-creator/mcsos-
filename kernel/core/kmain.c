@@ -12,6 +12,8 @@
 #include <mcsos/kernel/kmem.h>
 #include <mcsos/kernel/version.h>
 
+#include "mcsos_thread.h"
+
 #include <pic.h>
 #include <pit.h>
 
@@ -28,12 +30,21 @@ static volatile struct limine_memmap_request memmap_request = {
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0
 };
+
+__attribute__((used, section(".requests")))
+static volatile struct limine_hhdm_request hhdm_request = {
+    .id = LIMINE_HHDM_REQUEST,
+    .revision = 0
+};
+
 extern char __kernel_start[];
 extern char __kernel_end[];
 
 static struct pmm_state kernel_pmm;
 
 static struct vmm_space kernel_space;
+
+static uint64_t hhdm_offset = 0;
 
 #define M8_BOOT_HEAP_SIZE (64u * 1024u)
 
@@ -45,6 +56,18 @@ static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
     __attribute__((aligned(4096)));
 static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
     __attribute__((aligned(4096)));
+
+mcsos_scheduler_t g_sched;
+
+static mcsos_thread_t g_boot_thread;
+static mcsos_thread_t g_thread_a;
+static mcsos_thread_t g_thread_b;
+
+static unsigned char g_stack_a[8192]
+    __attribute__((aligned(16)));
+
+static unsigned char g_stack_b[8192]
+    __attribute__((aligned(16)));
 
 static uint32_t limine_to_boot_type(
     uint64_t type
@@ -93,6 +116,16 @@ static void m6_memory_init(void) {
             0x4D360001u
         );
     }
+
+if (hhdm_request.response == NULL) {
+        KERNEL_PANIC(
+            "limine hhdm missing",
+            0x4D360005u
+        );
+    }
+
+    hhdm_offset =
+        hhdm_request.response->offset;
 
     struct boot_mem_region regions[256];
 
@@ -216,7 +249,9 @@ static void *kernel_phys_to_virt(
 ) {
     (void)ctx;
 
-    return (void *)(uintptr_t)paddr;
+    return (void *)(uintptr_t)(
+        paddr + hhdm_offset
+    );
 }
 
 static void m7_zero_page(
@@ -319,6 +354,26 @@ static void m8_heap_bootstrap(void)
     log_putc('\n');
 }
 
+static void demo_thread_a(void *arg)
+{
+    (void)arg;
+
+    for (;;) {
+	log_writeln("[M9] thread A tick");
+        mcsos_sched_yield(&g_sched);
+    }
+}
+
+static void demo_thread_b(void *arg)
+{
+    (void)arg;
+
+    for (;;) {
+	log_writeln("[M9] thread B tick");
+        mcsos_sched_yield(&g_sched);
+    }
+}
+
 void kmain(void) {    m6_keep_symbols();
 
     cpu_cli();
@@ -373,12 +428,20 @@ m6_memory_init();
         );
     }
 
+log_writeln(
+    "[DBG] before m7_zero_page"
+);
+
     m7_zero_page(
         kernel_phys_to_virt(
             0,
             root
         )
     );
+
+log_writeln(
+    "[DBG] after m7_zero_page"
+);
 
     int rc =
         vmm_space_init(
@@ -462,6 +525,46 @@ m8_heap_bootstrap();
         0x4D43534F533034u
     );
 #else
+
+mcsos_scheduler_init(
+    &g_sched,
+    &g_boot_thread
+);
+
+mcsos_thread_prepare(
+    &g_thread_a,
+    "demo-a",
+    demo_thread_a,
+    0,
+    g_stack_a,
+    sizeof(g_stack_a),
+    g_sched.next_id++
+);
+
+mcsos_thread_prepare(
+    &g_thread_b,
+    "demo-b",
+    demo_thread_b,
+    0,
+    g_stack_b,
+    sizeof(g_stack_b),
+    g_sched.next_id++
+);
+
+mcsos_sched_enqueue(
+    &g_sched,
+    &g_thread_a
+);
+
+mcsos_sched_enqueue(
+    &g_sched,
+    &g_thread_b
+);
+
+log_writeln(
+    "[M9] scheduler initialized"
+);
+
     log_writeln(
         "[M5] enabling interrupts"
     );
@@ -475,16 +578,24 @@ m8_heap_bootstrap();
      */
     cpu_sti();
 
-    log_writeln(
-        "[M5] timer IRQ online"
-    );
+log_writeln(
+    "[M5] timer IRQ online"
+);
 
-    log_writeln(
-        "[M5] entering idle halt loop"
-    );
+log_writeln(
+    "[M9] starting first scheduler switch"
+);
 
-    for (;;) {
-        cpu_hlt();
-    }
+mcsos_sched_yield(
+    &g_sched
+);
+
+log_writeln(
+    "[M5] entering idle halt loop"
+);
+
+for (;;) {
+    cpu_hlt();
+}
 #endif
 }

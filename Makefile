@@ -22,9 +22,9 @@ OBJDUMP := objdump
 READELF := readelf
 NM := nm
 
-COMMON_CFLAGS := --target=x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-builtin -fno-stack-protector -fno-stack-check -fno-pic -fno-pie -fno-lto -m64 -march=x86-64 -mabi=sysv -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include
+COMMON_CFLAGS := --target=x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-builtin -fno-stack-protector -fno-stack-check -fno-pic -fno-pie -fno-lto -m64 -march=x86-64 -mabi=sysv -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include  -Iinclude
 
-COMMON_ASFLAGS := --target=x86_64-unknown-none-elf -ffreestanding -fno-pic -fno-pie -m64 -mno-red-zone -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include
+COMMON_ASFLAGS := --target=x86_64-unknown-none-elf -ffreestanding -fno-pic -fno-pie -m64 -mno-red-zone -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include  -Iinclude
 
 CFLAGS := $(COMMON_CFLAGS)
 ASFLAGS := $(COMMON_ASFLAGS)
@@ -255,3 +255,63 @@ m8-audit: build/m8/kmem.freestanding.o
 >    > $(M8_BUILD_DIR)/kmem.objdump.txt
 
 m8-all: check-m8 m8-audit
+
+M9_BUILD_DIR := build/m9
+
+.PHONY: m9-clean m9-host-test m9-freestanding m9-audit m9-all
+
+m9-clean:
+>rm -rf $(M9_BUILD_DIR)
+
+m9-host-test:
+>mkdir -p $(M9_BUILD_DIR)
+>$(HOSTCC) \
+>    -std=c17 \
+>    -Wall \
+>    -Wextra \
+>    -Werror \
+>    -DMCSOS_HOST_TEST \
+>    -Iinclude \
+>    tests/test_scheduler.c \
+>    kernel/mcsos_thread.c \
+>    -o $(M9_BUILD_DIR)/m9_host_test
+>./$(M9_BUILD_DIR)/m9_host_test | tee $(M9_BUILD_DIR)/test_scheduler.log
+
+m9-freestanding:
+>mkdir -p $(M9_BUILD_DIR)
+>$(CC) \
+>    -target x86_64-unknown-none-elf \
+>    -std=c17 \
+>    -ffreestanding \
+>    -fno-stack-protector \
+>    -fno-pic \
+>    -mno-red-zone \
+>    -Wall \
+>    -Wextra \
+>    -Werror \
+>    -Iinclude \
+>    -c kernel/mcsos_thread.c \
+>    -o $(M9_BUILD_DIR)/mcsos_thread.freestanding.o
+>$(CC) \
+>    -target x86_64-unknown-none-elf \
+>    -ffreestanding \
+>    -fno-stack-protector \
+>    -fno-pic \
+>    -mno-red-zone \
+-c kernel/arch/x86_64/context_switch.S \
+>    -o $(M9_BUILD_DIR)/context_switch.o
+>$(LD) -r \
+>    $(M9_BUILD_DIR)/mcsos_thread.freestanding.o \
+>    $(M9_BUILD_DIR)/context_switch.o \
+>    -o $(M9_BUILD_DIR)/m9_scheduler_combined.o
+
+m9-audit: m9-freestanding
+>nm -u $(M9_BUILD_DIR)/m9_scheduler_combined.o | tee $(M9_BUILD_DIR)/nm_undefined.log
+>readelf -h $(M9_BUILD_DIR)/m9_scheduler_combined.o | tee $(M9_BUILD_DIR)/readelf_header.log
+>objdump -d $(M9_BUILD_DIR)/m9_scheduler_combined.o | grep -E 'mcsos_context_switch|jmp|ret|hlt' | tee $(M9_BUILD_DIR)/objdump_key.log
+>sha256sum \
+>    $(M9_BUILD_DIR)/m9_host_test \
+>    $(M9_BUILD_DIR)/m9_scheduler_combined.o \
+>    | tee $(M9_BUILD_DIR)/sha256.log
+
+m9-all: m9-host-test m9-freestanding m9-audit
