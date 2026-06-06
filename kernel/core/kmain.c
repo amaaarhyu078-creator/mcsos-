@@ -12,6 +12,10 @@
 #include <mcsos/kernel/kmem.h>
 #include <mcsos/kernel/version.h>
 
+#include <mcsos/syscall.h>
+#include <mcsos/arch/serial.h>
+
+
 #include "mcsos_thread.h"
 
 #include <pic.h>
@@ -48,6 +52,9 @@ static uint64_t hhdm_offset = 0;
 
 #define M8_BOOT_HEAP_SIZE (64u * 1024u)
 
+#define MCSOS_USER_BASE  0x0000000000400000ULL
+#define MCSOS_USER_LIMIT 0x0000800000000000ULL
+
 static unsigned char
 m8_boot_heap[M8_BOOT_HEAP_SIZE]
 __attribute__((aligned(4096)));
@@ -58,6 +65,35 @@ static uint8_t kernel_pmm_bitmap[PMM_BITMAP_BYTES]
     __attribute__((aligned(4096)));
 
 mcsos_scheduler_t g_sched;
+static uint64_t k_get_ticks(void)
+{
+    return timer_ticks();
+}
+
+static void k_yield_current(void)
+{
+    (void)mcsos_sched_yield(&g_sched);
+}
+
+static void k_exit_current(int code)
+{
+    (void)code;
+    /* M10 stub */
+}
+
+static int64_t k_write_serial(
+    const char *buf,
+    size_t len
+)
+{
+    if (buf == 0) {
+        return -22;
+    }
+
+    serial_write(buf);
+    return (int64_t)len;
+}
+
 
 static mcsos_thread_t g_boot_thread;
 static mcsos_thread_t g_thread_a;
@@ -563,6 +599,22 @@ mcsos_sched_enqueue(
 
 log_writeln(
     "[M9] scheduler initialized"
+);
+
+mcsos_syscall_ops_t ops = {
+    .get_ticks = k_get_ticks,
+    .yield_current = k_yield_current,
+    .exit_current = k_exit_current,
+    .write_serial = k_write_serial
+};
+
+mcsos_syscall_init(&ops);
+
+mcsos_syscall_set_user_region(
+    (mcsos_user_region_t){
+        .base = MCSOS_USER_BASE,
+        .limit = MCSOS_USER_LIMIT,
+    }
 );
 
     log_writeln(
