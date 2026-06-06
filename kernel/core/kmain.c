@@ -96,6 +96,27 @@ static int64_t k_write_serial(
 
 
 static mcsos_thread_t g_boot_thread;
+
+static void m10_syscall_smoke_direct(void)
+{
+    int64_t r =
+        mcsos_syscall_dispatch(
+            MCSOS_SYS_PING,
+            0, 0, 0, 0, 0, 0
+        );
+
+    if (r != 0x2605020A) {
+        KERNEL_PANIC(
+            "M10 syscall ping failed",
+            (uint64_t)r
+        );
+    }
+
+    log_writeln(
+        "[M10] syscall ping ok"
+    );
+}
+
 static mcsos_thread_t g_thread_a;
 static mcsos_thread_t g_thread_b;
 
@@ -616,6 +637,8 @@ mcsos_syscall_set_user_region(
         .limit = MCSOS_USER_LIMIT,
     }
 );
+
+m10_syscall_smoke_direct();
 
     log_writeln(
         "[M5] enabling interrupts"
