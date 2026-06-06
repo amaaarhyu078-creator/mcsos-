@@ -6,6 +6,8 @@
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
 
+extern void x86_64_syscall_int80_stub(void);
+
 static x86_64_idt_entry_t idt[X86_64_IDT_VECTOR_COUNT];
 static x86_64_idtr_t idtr;
 
@@ -61,6 +63,12 @@ void x86_64_idt_init(void) {
 for (uint8_t vector = 0u;
      vector < 48u;
      ++vector) {
+
+x86_64_idt_set_gate(
+    0x80u,
+    (uint64_t)(uintptr_t)x86_64_syscall_int80_stub,
+    X86_64_IDT_GATE_INTERRUPT
+);
 
     uint8_t gate_type =
         X86_64_IDT_GATE_INTERRUPT;
