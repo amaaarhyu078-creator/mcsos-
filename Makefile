@@ -315,3 +315,65 @@ m9-audit: m9-freestanding
 >    | tee $(M9_BUILD_DIR)/sha256.log
 
 m9-all: m9-host-test m9-freestanding m9-audit
+
+###############################################################################
+# M10
+###############################################################################
+
+.PHONY: m10-host-test m10-freestanding m10-audit m10-all
+
+build/m10/test_syscall_host: \
+	tests/test_syscall_host.c \
+	kernel/syscall/syscall.c \
+	kernel/include/mcsos/syscall.h
+>mkdir -p build/m10
+>$(HOSTCC) \
+>	-std=c17 \
+>	-Wall \
+>	-Wextra \
+>	-Werror \
+>	-Ikernel/include \
+>	-Iinclude \
+>	tests/test_syscall_host.c \
+>	kernel/syscall/syscall.c \
+>	-o build/m10/test_syscall_host
+
+m10-host-test: build/m10/test_syscall_host
+>./build/m10/test_syscall_host
+
+build/m10/syscall.o: \
+	kernel/syscall/syscall.c \
+	kernel/include/mcsos/syscall.h
+>mkdir -p build/m10
+>$(CC) \
+>	$(COMMON_CFLAGS) \
+>	-c kernel/syscall/syscall.c \
+>	-o build/m10/syscall.o
+
+build/m10/syscall_entry.o: \
+	kernel/arch/x86_64/syscall_entry.S
+>mkdir -p build/m10
+>$(CC) \
+>	$(COMMON_ASFLAGS) \
+>	-c kernel/arch/x86_64/syscall_entry.S \
+>	-o build/m10/syscall_entry.o
+
+build/m10/m10_syscall_combined.o: \
+	build/m10/syscall.o \
+	build/m10/syscall_entry.o
+>ld -r $^ -o $@
+
+m10-freestanding: \
+	build/m10/syscall.o \
+	build/m10/syscall_entry.o
+
+m10-audit: build/m10/m10_syscall_combined.o
+>mkdir -p build/m10
+>$(NM) -u build/m10/m10_syscall_combined.o \
+>	> build/m10/nm_undefined.txt
+>$(READELF) -h build/m10/m10_syscall_combined.o \
+>	> build/m10/readelf_header.txt
+>$(OBJDUMP) -dr build/m10/m10_syscall_combined.o \
+>	> build/m10/objdump.txt
+
+m10-all: m10-host-test m10-freestanding m10-audit
