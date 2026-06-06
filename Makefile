@@ -377,3 +377,52 @@ m10-audit: build/m10/m10_syscall_combined.o
 >	> build/m10/objdump.txt
 
 m10-all: m10-host-test m10-freestanding m10-audit
+
+###############################################################################
+# M11
+###############################################################################
+
+.PHONY: m11-host-test m11-freestanding m11-audit m11-all
+
+build/m11/m11_host_test: \
+        tests/m11/m11_host_test.c \
+        kernel/user/m11_elf_loader.c \
+        include/mcsos/user/m11_elf_loader.h
+>mkdir -p build/m11
+>$(CC) \
+>       -std=c17 \
+>       -Wall \
+>       -Wextra \
+>       -Werror \
+>       -O2 \
+>       -g \
+>       -Iinclude/mcsos/user \
+>       tests/m11/m11_host_test.c \
+>       kernel/user/m11_elf_loader.c \
+>       -o build/m11/m11_host_test
+
+m11-host-test: build/m11/m11_host_test
+>./build/m11/m11_host_test | tee build/m11/host_test.log
+
+build/m11/m11_elf_loader.o: \
+        kernel/user/m11_elf_loader.c \
+        include/mcsos/user/m11_elf_loader.h
+>mkdir -p build/m11
+>$(CC) \
+>       $(COMMON_CFLAGS) \
+>       -Iinclude/mcsos/user \
+>       -c kernel/user/m11_elf_loader.c \
+>       -o build/m11/m11_elf_loader.o
+
+m11-freestanding: build/m11/m11_elf_loader.o
+
+m11-audit: build/m11/m11_elf_loader.o
+>mkdir -p build/m11
+>$(NM) -u build/m11/m11_elf_loader.o \
+>       > build/m11/nm_undefined.txt
+>$(READELF) -h build/m11/m11_elf_loader.o \
+>       > build/m11/readelf_header.txt
+>$(OBJDUMP) -dr build/m11/m11_elf_loader.o \
+>       > build/m11/objdump.txt
+
+m11-all: m11-host-test m11-freestanding m11-audit
