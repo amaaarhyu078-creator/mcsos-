@@ -18,6 +18,8 @@
 
 #include "mcsos_thread.h"
 
+void m12_sync_selftest(void);
+
 #include <pic.h>
 #include <pit.h>
 
@@ -527,6 +529,9 @@ log_writeln(
     );
 }
 m8_heap_bootstrap();
+
+m12_sync_selftest();
+
     /*
      * PIC setup
      */
