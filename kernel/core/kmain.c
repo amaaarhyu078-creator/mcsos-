@@ -627,6 +627,10 @@ log_writeln(
     "[M9] scheduler initialized"
 );
 
+log_writeln(
+    "[M14] block layer initialized"
+);
+
 mcsos_syscall_ops_t ops = {
     .get_ticks = k_get_ticks,
     .yield_current = k_yield_current,
