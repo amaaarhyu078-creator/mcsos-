@@ -1,2 +1,1 @@
-?? artifacts/
-?? scripts/m14_preflight.sh
+ M kernel/core/kmain.c
