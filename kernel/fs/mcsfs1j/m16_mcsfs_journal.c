@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <mcsos/arch/serial.h>
+
 #define M16_BLOCK_SIZE 512u
 #define M16_MAX_BLOCKS 128u
 #define M16_MAX_INODES 16u
@@ -282,7 +284,8 @@ static int m16_journal_commit(struct m16_blockdev *dev, const struct m16_tx *tx,
             return rc;
         }
     }
-    return m16_journal_clear(dev);
+int clear_rc = m16_journal_clear(dev);
+return clear_rc;
 }
 
 int m16_journal_recover(struct m16_blockdev *dev) {
@@ -294,12 +297,18 @@ int m16_journal_recover(struct m16_blockdev *dev) {
     if (rc != M16_E_OK) {
         return rc;
     }
-    if (h.magic == 0u && h.state == M16_J_EMPTY) {
-        return M16_E_OK;
-    }
-    if (h.magic != M16_JMAGIC || h.version != M16_VERSION || h.state != M16_J_COMMITTED || h.count > M16_JOURNAL_MAX_RECORDS) {
-        return M16_E_CORRUPT;
-    }
+
+if (h.magic == 0u && h.state == M16_J_EMPTY) {
+    serial_write("[M16] journal: empty\n");
+    return M16_E_OK;
+}
+if (h.magic != M16_JMAGIC ||
+    h.version != M16_VERSION ||
+    h.state != M16_J_COMMITTED ||
+    h.count > M16_JOURNAL_MAX_RECORDS) {
+    serial_write("[M16] journal: corrupt\n");
+    return M16_E_CORRUPT;
+}
     if (m16_header_checksum(&h) != h.header_checksum) {
         return M16_E_CORRUPT;
     }
@@ -327,7 +336,13 @@ int m16_journal_recover(struct m16_blockdev *dev) {
             return rc;
         }
     }
-    return m16_journal_clear(dev);
+rc = m16_journal_clear(dev);
+
+if (rc == M16_E_OK) {
+    serial_write("[M16] journal: replayed\n");
+}
+
+return rc;
 }
 
 int m16_format(struct m16_blockdev *dev) {
